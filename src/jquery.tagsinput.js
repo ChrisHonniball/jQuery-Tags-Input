@@ -15,6 +15,176 @@ ben@xoxco.com
 (function($) {
   var delimiter = new Array();
   var tags_callbacks = new Array();
+
+  $.fn.tagsInput = function(options) {
+    var settings = jQuery.extend({
+      interactive:true,
+      defaultText:'add a tag',
+      minChars:0,
+      width:'300px',
+      height:'100px',
+      autocomplete: {selectFirst: false },
+      hide:true,
+      delimiter: ',',
+      unique:true,
+      removeWithBackspace:true,
+      placeholderColor:'#666666',
+      autosize: true,
+      comfortZone: 20,
+      inputPadding: 6*2
+    },options);
+
+    var uniqueIdCounter = 0;
+
+    this.each(function() {
+      // If we have already initialized the field, do not do it again
+      if (typeof $(this).attr('data-tagsinput-init') !== 'undefined') {
+        return;
+      }
+
+      // Mark the field as having been initialized
+      $(this).attr('data-tagsinput-init', true);
+
+      if (settings.hide) {
+        $(this).hide();
+      }
+      
+      var id = $(this).attr('id');
+      if (!id || delimiter[$(this).attr('id')]) {
+        id = $(this).attr('id', 'tags' + new Date().getTime() + (uniqueIdCounter++)).attr('id');
+      }
+
+      var data = jQuery.extend({
+        pid:id,
+        real_input: '#'+id,
+        holder: '#'+id+'_tagsinput',
+        input_wrapper: '#'+id+'_addTag',
+        fake_input: '#'+id+'_tag'
+      },settings);
+
+      delimiter[id] = data.delimiter;
+
+      if (settings.onAddTag || settings.onRemoveTag || settings.onChange) {
+        tags_callbacks[id] = new Array();
+        tags_callbacks[id]['onAddTag'] = settings.onAddTag;
+        tags_callbacks[id]['onRemoveTag'] = settings.onRemoveTag;
+        tags_callbacks[id]['onChange'] = settings.onChange;
+      }
+
+      var markup = '<div id="'+id+'_tagsinput" class="tagsinput"><div id="'+id+'_addTag">';
+
+      if (settings.interactive) {
+        markup = markup + '<input id="'+id+'_tag" value="" data-default-placeholder="'+settings.defaultText+'" />';
+      }
+
+      markup = markup + '</div><div class="tags_clear"></div></div>';
+
+      $(markup).insertAfter(this);
+
+      $(data.holder).css('width',settings.width);
+      $(data.holder).css('min-height',settings.height);
+      $(data.holder).css('height',settings.height);
+
+      if ($(data.real_input).val()!='') {
+        $.fn.tagsInput.importTags($(data.real_input),$(data.real_input).val());
+      }
+      
+      if (settings.interactive) {
+        $(data.fake_input).val(settings.defaultText);
+        $(data.fake_input).css('color',settings.placeholderColor);
+        $(data.fake_input).resetAutosize(settings);
+
+        $(data.holder).bind('click',data,function(event) {
+          $(event.data.fake_input).focus();
+        });
+
+        $(data.fake_input).bind('focus',data,function(event) {
+          if($(event.data.fake_input).val() == $(event.data.fake_input).attr('data-default-placeholder')) {
+            $(event.data.fake_input).val('');
+          }
+          $(event.data.fake_input).css('color','#000000');
+        });
+
+        if (settings.autocomplete_url != undefined) {
+          autocomplete_options = {source: settings.autocomplete_url};
+          
+          for (attrname in settings.autocomplete) {
+            autocomplete_options[attrname] = settings.autocomplete[attrname];
+          }
+
+          if (jQuery.Autocompleter !== undefined) {
+            $(data.fake_input).autocomplete(settings.autocomplete_url, settings.autocomplete);
+            $(data.fake_input).bind('result',data,function(event,data,formatted) {
+              if (data) {
+                $('#'+id).addTag(data[0] + "",{focus:true,unique:(settings.unique)});
+              }
+            });
+          } else if (jQuery.ui.autocomplete !== undefined) {
+            $(data.fake_input).autocomplete(autocomplete_options);
+            $(data.fake_input).bind('autocompleteselect',data,function(event,ui) {
+              $(event.data.real_input).addTag(ui.item.value,{focus:true,unique:(settings.unique)});
+            });
+          }
+        } else {
+          // if a user tabs out of the field, create a new tag
+          // this is only available if autocomplete is not used.
+          $(data.fake_input).bind('blur',data,function(event) {
+            var d = $(this).attr('data-default-placeholder');
+            if ($(event.data.fake_input).val()!='' && $(event.data.fake_input).val()!=d) {
+              if( (event.data.minChars <= $(event.data.fake_input).val().length) && (!event.data.maxChars || (event.data.maxChars >= $(event.data.fake_input).val().length)) ) {
+                $(event.data.real_input).addTag($(event.data.fake_input).val(),{focus:true,unique:(settings.unique)});
+              }
+            } else {
+              $(event.data.fake_input).val(d);
+              $(event.data.fake_input).css('color',settings.placeholderColor);
+            }
+          });
+        }
+        
+        // if user types a default delimiter like comma,semicolon and then create a new tag
+        $(data.fake_input).bind('keypress',data,function(event) {
+          if (_checkDelimiter(event)) {
+            event.preventDefault();
+            if( (event.data.minChars <= $(event.data.fake_input).val().length) && (!event.data.maxChars || (event.data.maxChars >= $(event.data.fake_input).val().length)) ) {
+              $(event.data.real_input).addTag($(event.data.fake_input).val(),{focus:true,unique:(settings.unique)});
+            }
+            
+            $(event.data.fake_input).resetAutosize(settings);
+          } else if (event.data.autosize) {
+            $(event.data.fake_input).doAutosize(settings);
+          }
+        });
+        
+        //Delete last tag on backspace
+        if(data.removeWithBackspace) {
+          $(data.fake_input).bind('keydown', function(event) {
+            if(event.keyCode == 8 && $(this).val() == '') {
+              event.preventDefault();
+              var last_tag = $(this).closest('.tagsinput').find('.tag:last span').text();
+              if(last_tag) {
+                var id = $(this).attr('id').replace(/_tag$/, '');
+                $('#' + id).removeTag(escape(last_tag));
+              }
+              $(this).trigger('focus');
+            }
+          });
+        }
+        
+        $(data.fake_input).blur();
+
+        //Removes the not_valid class when user changes the value of the fake input
+        if(data.unique) {
+          $(data.fake_input).keydown(function(event){
+            if(event.keyCode == 8 || String.fromCharCode(event.which).match(/\w+|[áéíóúÁÉÍÓÚñÑ,/]+/)) {
+              $(this).removeClass('not_valid');
+            }
+          });
+        }
+      } // if settings.interactive
+    });
+
+    return this;
+  };
   
   $.fn.doAutosize = function(o){
     var minWidth = $(this).data('minwidth'),
@@ -80,8 +250,9 @@ ben@xoxco.com
     
     this.each(function() {
       var id = $(this).attr('id');
-
-      var tagslist = $(this).val().split(delimiter[id]);
+      
+      var regex = new RegExp(delimiter[id].join('|'));
+      var tagslist = $(this).val().split(regex);
       if (tagslist[0] == '') {
         tagslist = new Array();
       }
@@ -104,7 +275,7 @@ ben@xoxco.com
           $('<a>', {
             href  : '#',
             title : 'Removing tag',
-            html  : '×'
+            html  : "&times;"
           }).click(function (e) {
             e.preventDefault();
             return $('#' + id).removeTag(escape(value));
@@ -143,7 +314,8 @@ ben@xoxco.com
     this.each(function() {
       var id = $(this).attr('id');
 
-      var old = $(this).val().split(delimiter[id]);
+      var regex = new RegExp(delimiter[id].join('|'));
+      var old = $(this).val().split(regex);
 
       $('#'+id+'_tagsinput .tag').remove();
       str = '';
@@ -166,7 +338,8 @@ ben@xoxco.com
 
   $.fn.tagExist = function(val) {
     var id = $(this).attr('id');
-    var tagslist = $(this).val().split(delimiter[id]);
+    var regex = new RegExp(delimiter[id].join('|'));
+    var tagslist = $(this).val().split(regex);
     return (jQuery.inArray(val, tagslist) >= 0); //true when tag exists, false when not
   };
 
@@ -176,174 +349,6 @@ ben@xoxco.com
     $('#'+id+'_tagsinput .tag').remove();
     $.fn.tagsInput.importTags(this,str);
   }
-
-  $.fn.tagsInput = function(options) {
-    var settings = jQuery.extend({
-      interactive:true,
-      defaultText:'add a tag',
-      minChars:0,
-      width:'300px',
-      height:'100px',
-      autocomplete: {selectFirst: false },
-      hide:true,
-      delimiter: ',',
-      unique:true,
-      removeWithBackspace:true,
-      placeholderColor:'#666666',
-      autosize: true,
-      comfortZone: 20,
-      inputPadding: 6*2
-    },options);
-
-    var uniqueIdCounter = 0;
-
-    this.each(function() {
-      // If we have already initialized the field, do not do it again
-      if (typeof $(this).attr('data-tagsinput-init') !== 'undefined') {
-        return;
-      }
-
-      // Mark the field as having been initialized
-      $(this).attr('data-tagsinput-init', true);
-
-      if (settings.hide) {
-        $(this).hide();
-      }
-      
-      var id = $(this).attr('id');
-      if (!id || delimiter[$(this).attr('id')]) {
-        id = $(this).attr('id', 'tags' + new Date().getTime() + (uniqueIdCounter++)).attr('id');
-      }
-
-      var data = jQuery.extend({
-        pid:id,
-        real_input: '#'+id,
-        holder: '#'+id+'_tagsinput',
-        input_wrapper: '#'+id+'_addTag',
-        fake_input: '#'+id+'_tag'
-      },settings);
-
-      delimiter[id] = data.delimiter;
-
-      if (settings.onAddTag || settings.onRemoveTag || settings.onChange) {
-        tags_callbacks[id] = new Array();
-        tags_callbacks[id]['onAddTag'] = settings.onAddTag;
-        tags_callbacks[id]['onRemoveTag'] = settings.onRemoveTag;
-        tags_callbacks[id]['onChange'] = settings.onChange;
-      }
-
-      var markup = '<div id="'+id+'_tagsinput" class="tagsinput"><div id="'+id+'_addTag">';
-
-      if (settings.interactive) {
-        markup = markup + '<input id="'+id+'_tag" value="" data-default="'+settings.defaultText+'" />';
-      }
-
-      markup = markup + '</div><div class="tags_clear"></div></div>';
-
-      $(markup).insertAfter(this);
-
-      $(data.holder).css('width',settings.width);
-      $(data.holder).css('min-height',settings.height);
-      $(data.holder).css('height',settings.height);
-
-      if ($(data.real_input).val()!='') {
-        $.fn.tagsInput.importTags($(data.real_input),$(data.real_input).val());
-      }
-      
-      if (settings.interactive) {
-        $(data.fake_input).val($(data.fake_input).attr('data-default'));
-        $(data.fake_input).css('color',settings.placeholderColor);
-        $(data.fake_input).resetAutosize(settings);
-
-        $(data.holder).bind('click',data,function(event) {
-          $(event.data.fake_input).focus();
-        });
-
-        $(data.fake_input).bind('focus',data,function(event) {
-          if ($(event.data.fake_input).val()==$(event.data.fake_input).attr('data-default')) {
-            $(event.data.fake_input).val('');
-          }
-          $(event.data.fake_input).css('color','#000000');
-        });
-
-        if (settings.autocomplete_url != undefined) {
-          autocomplete_options = {source: settings.autocomplete_url};
-          
-          for (attrname in settings.autocomplete) {
-            autocomplete_options[attrname] = settings.autocomplete[attrname];
-          }
-
-          if (jQuery.Autocompleter !== undefined) {
-            $(data.fake_input).autocomplete(settings.autocomplete_url, settings.autocomplete);
-            $(data.fake_input).bind('result',data,function(event,data,formatted) {
-              if (data) {
-                $('#'+id).addTag(data[0] + "",{focus:true,unique:(settings.unique)});
-              }
-            });
-          } else if (jQuery.ui.autocomplete !== undefined) {
-            $(data.fake_input).autocomplete(autocomplete_options);
-            $(data.fake_input).bind('autocompleteselect',data,function(event,ui) {
-              $(event.data.real_input).addTag(ui.item.value,{focus:true,unique:(settings.unique)});
-              return false;
-            });
-          }
-        } else {
-          // if a user tabs out of the field, create a new tag
-          // this is only available if autocomplete is not used.
-          $(data.fake_input).bind('blur',data,function(event) {
-            var d = $(this).attr('data-default');
-            if ($(event.data.fake_input).val()!='' && $(event.data.fake_input).val()!=d) {
-              if( (event.data.minChars <= $(event.data.fake_input).val().length) && (!event.data.maxChars || (event.data.maxChars >= $(event.data.fake_input).val().length)) ) {
-                $(event.data.real_input).addTag($(event.data.fake_input).val(),{focus:true,unique:(settings.unique)});
-              }
-            } else {
-              $(event.data.fake_input).val($(event.data.fake_input).attr('data-default'));
-              $(event.data.fake_input).css('color',settings.placeholderColor);
-            }
-            return false;
-          });
-        }
-        
-        // if user types a default delimiter like comma,semicolon and then create a new tag
-        $(data.fake_input).bind('keypress',data,function(event) {
-          if (_checkDelimiter(event)) {
-            event.preventDefault();
-            if( (event.data.minChars <= $(event.data.fake_input).val().length) && (!event.data.maxChars || (event.data.maxChars >= $(event.data.fake_input).val().length)) ) {
-              $(event.data.real_input).addTag($(event.data.fake_input).val(),{focus:true,unique:(settings.unique)});
-            }
-            
-            $(event.data.fake_input).resetAutosize(settings);
-            return false;
-          } else if (event.data.autosize) {
-            $(event.data.fake_input).doAutosize(settings);
-          }
-        });
-        
-        //Delete last tag on backspace
-        data.removeWithBackspace && $(data.fake_input).bind('keydown', function(event) {
-          if(event.keyCode == 8 && $(this).val() == '') {
-            event.preventDefault();
-            var last_tag = $(this).closest('.tagsinput').find('.tag:last span').text();
-            var id = $(this).attr('id').replace(/_tag$/, '');
-            $('#' + id).removeTag(escape(last_tag));
-            $(this).trigger('focus');
-          }
-        });
-        $(data.fake_input).blur();
-
-        //Removes the not_valid class when user changes the value of the fake input
-        if(data.unique) {
-          $(data.fake_input).keydown(function(event){
-            if(event.keyCode == 8 || String.fromCharCode(event.which).match(/\w+|[áéíóúÁÉÍÓÚñÑ,/]+/)) {
-              $(this).removeClass('not_valid');
-            }
-          });
-        }
-      } // if settings.interactive
-    });
-
-    return this;
-  };
 
   $.fn.tagsInput.updateTagsField = function(obj,tagslist) {
     var id = $(obj).attr('id');
@@ -364,6 +369,19 @@ ben@xoxco.com
       var f = tags_callbacks[id]['onChange'];
       f.call(obj, obj, tags[i]);
     }
+  };
+  
+  $.fn.destroyTagsInput = function() {
+    var data = jQuery.extend({
+      pid:id,
+      real_input: '#'+id,
+      holder: '#'+id+'_tagsinput',
+      input_wrapper: '#'+id+'_addTag',
+      fake_input: '#'+id+'_tag'
+    },settings);
+    
+    $(data.holder).unbind();
+    $(data.fake_input).unbind();
   };
 
   /**
