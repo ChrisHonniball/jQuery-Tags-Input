@@ -372,13 +372,18 @@ ben@xoxco.com
   };
   
   $.fn.destroyTagsInput = function() {
-    var data = jQuery.extend({
-      pid:id,
+    var id = $(this).attr('id');
+    var uniqueIdCounter = 0;
+    if (!id || delimiter[$(this).attr('id')]) {
+      id = $(this).attr('id', 'tags' + new Date().getTime() + (uniqueIdCounter++)).attr('id');
+    }
+    
+    var data = {
       real_input: '#'+id,
       holder: '#'+id+'_tagsinput',
       input_wrapper: '#'+id+'_addTag',
       fake_input: '#'+id+'_tag'
-    },settings);
+    };
     
     $(data.holder).unbind();
     $(data.fake_input).unbind();
