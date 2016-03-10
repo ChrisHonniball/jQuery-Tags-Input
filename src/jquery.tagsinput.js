@@ -101,8 +101,9 @@
           $('<a>', {
             href  : '#',
             title : 'Removing tag',
-            text  : '&times;'
-          }).click(function () {
+            html  : '×'
+          }).click(function (e) {
+            e.preventDefault();
             return $('#' + id).removeTag(escape(value));
           })
           ).insertBefore('#' + id + '_addTag');
@@ -350,7 +351,8 @@ $.fn.tagsInput.updateTagsField = function(obj,tagslist) {
 $.fn.tagsInput.importTags = function(obj,val) {
   $(obj).val('');
   var id = $(obj).attr('id');
-  var tags = val.split(delimiter[id]);
+  var regex = new RegExp(delimiter[id].join('|'));
+  var tags = val.split(regex);
   for (i=0; i<tags.length; i++) {
    $(obj).addTag(tags[i],{focus:false,callback:false});
  }
@@ -361,30 +363,30 @@ $.fn.tagsInput.importTags = function(obj,val) {
  }
 };
 
-   /**
-     * check delimiter Array
-     * @param event
-     * @returns {boolean}
-     * @private
-     */
-     var _checkDelimiter = function(event){
-      var found = false;
-      if (event.which == 13) {
-       return true;
-     }
+/**
+* check delimiter Array
+* @param event
+* @returns {boolean}
+* @private
+*/
+var _checkDelimiter = function(event){
+  var found = false;
+  if (event.which == 13) {
+    return true;
+  }
 
-     if (typeof event.data.delimiter === 'string') {
-       if (event.which == event.data.delimiter.charCodeAt(0)) {
+  if (typeof event.data.delimiter === 'string') {
+    if (event.which == event.data.delimiter.charCodeAt(0)) {
+      found = true;
+    }
+  } else {
+    $.each(event.data.delimiter, function(index, delimiter) {
+      if (event.which == delimiter.charCodeAt(0)) {
         found = true;
       }
-    } else {
-     $.each(event.data.delimiter, function(index, delimiter) {
-      if (event.which == delimiter.charCodeAt(0)) {
-       found = true;
-     }
-   });
-   }
-
-   return found;
- }
+    });
+  }
+  
+  return found;
+}
 })(jQuery);
