@@ -23,10 +23,11 @@ div.tagsinput span.tag {
 }
 div.tagsinput span.tag a {
   margin-left: 5px;
+  padding: 2px;
   font-weight: bold;
   color: #82ad2b;
   text-decoration: none;
-  font-size: 11px;
+  font-size: 13px;
 }
 div.tagsinput input {
   width: 80px;
