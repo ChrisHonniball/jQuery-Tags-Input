@@ -48,7 +48,7 @@ ben@xoxco.com
       if (settings.hide) {
         $(this).hide();
       }
-      
+
       var id = $(this).attr('id');
       if (!id || delimiter[$(this).attr('id')]) {
         id = $(this).attr('id', 'tags' + new Date().getTime() + (uniqueIdCounter++)).attr('id');
@@ -88,7 +88,7 @@ ben@xoxco.com
       if ($(data.real_input).val()!='') {
         $.fn.tagsInput.importTags($(data.real_input),$(data.real_input).val());
       }
-      
+
       if (settings.interactive) {
         $(data.fake_input).val(settings.defaultText);
         $(data.fake_input).css('color',settings.placeholderColor);
@@ -107,7 +107,7 @@ ben@xoxco.com
 
         if (settings.autocomplete_url != undefined) {
           autocomplete_options = {source: settings.autocomplete_url};
-          
+
           for (attrname in settings.autocomplete) {
             autocomplete_options[attrname] = settings.autocomplete[attrname];
           }
@@ -140,7 +140,7 @@ ben@xoxco.com
             }
           });
         }
-        
+
         // if user types a default delimiter like comma,semicolon and then create a new tag
         $(data.fake_input).bind('keypress',data,function(event) {
           if (_checkDelimiter(event)) {
@@ -148,13 +148,13 @@ ben@xoxco.com
             if( (event.data.minChars <= $(event.data.fake_input).val().length) && (!event.data.maxChars || (event.data.maxChars >= $(event.data.fake_input).val().length)) ) {
               $(event.data.real_input).addTag($(event.data.fake_input).val(),{focus:true,unique:(settings.unique)});
             }
-            
+
             $(event.data.fake_input).resetAutosize(settings);
           } else if (event.data.autosize) {
             $(event.data.fake_input).doAutosize(settings);
           }
         });
-        
+
         //Delete last tag on backspace
         if(data.removeWithBackspace) {
           $(data.fake_input).bind('keydown', function(event) {
@@ -169,7 +169,7 @@ ben@xoxco.com
             }
           });
         }
-        
+
         $(data.fake_input).blur();
 
         //Removes the not_valid class when user changes the value of the fake input
@@ -185,7 +185,7 @@ ben@xoxco.com
 
     return this;
   };
-  
+
   $.fn.doAutosize = function(o){
     var minWidth = $(this).data('minwidth'),
     maxWidth = $(this).data('maxwidth'),
@@ -196,11 +196,11 @@ ben@xoxco.com
     if (val === (val = input.val())) {
       return;
     }
-    
+
     // Enter new content into testSubject
     var escaped = val.replace(/&/g, '&amp;').replace(/\s/g,' ').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     testSubject.html(escaped);
-    
+
     // Calculate new width + whether to change
     var testerWidth = testSubject.width(),
     newWidth = (testerWidth + o.comfortZone) >= minWidth ? testerWidth + o.comfortZone : minWidth,
@@ -212,7 +212,7 @@ ben@xoxco.com
       input.width(newWidth);
     }
   };
-  
+
   $.fn.resetAutosize = function(options){
     // alert(JSON.stringify(options));
     var minWidth =  $(this).data('minwidth') || options.minInputWidth || $(this).width(),
@@ -247,10 +247,10 @@ ben@xoxco.com
       focus:false,
       callback:true
     },options);
-    
+
     this.each(function() {
       var id = $(this).attr('id');
-      
+
       var regex = new RegExp(delimiter[id].join('|'));
       var tagslist = $(this).val().split(regex);
       if (tagslist[0] == '') {
@@ -275,7 +275,7 @@ ben@xoxco.com
           $('<a>', {
             href  : '#',
             title : 'Removing tag',
-            html  : "&times;"
+            html  : "\u02DF"
           }).click(function (e) {
             e.preventDefault();
             return $('#' + id).removeTag(escape(value));
@@ -297,7 +297,7 @@ ben@xoxco.com
           var f = tags_callbacks[id]['onAddTag'];
           f.call(this, value);
         }
-        
+
         if(tags_callbacks[id] && tags_callbacks[id]['onChange']) {
           var i = tagslist.length;
           var f = tags_callbacks[id]['onChange'];
@@ -360,31 +360,31 @@ ben@xoxco.com
     var id = $(obj).attr('id');
     var regex = new RegExp(delimiter[id].join('|'));
     var tags = val.split(regex);
-    
+
     for (i=0; i<tags.length; i++) {
       $(obj).addTag(tags[i],{focus:false,callback:false});
     }
-    
+
     if(tags_callbacks[id] && tags_callbacks[id]['onChange']) {
       var f = tags_callbacks[id]['onChange'];
       f.call(obj, obj, tags[i]);
     }
   };
-  
+
   $.fn.destroyTagsInput = function() {
     var id = $(this).attr('id');
     var uniqueIdCounter = 0;
     if (!id || delimiter[$(this).attr('id')]) {
       id = $(this).attr('id', 'tags' + new Date().getTime() + (uniqueIdCounter++)).attr('id');
     }
-    
+
     var data = {
       real_input: '#'+id,
       holder: '#'+id+'_tagsinput',
       input_wrapper: '#'+id+'_addTag',
       fake_input: '#'+id+'_tag'
     };
-    
+
     $(data.holder).unbind();
     $(data.fake_input).unbind();
   };
