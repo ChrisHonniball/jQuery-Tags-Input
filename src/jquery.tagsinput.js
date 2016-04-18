@@ -275,7 +275,7 @@ ben@xoxco.com
           $('<a>', {
             href  : '#',
             title : 'Removing tag',
-            html  : "\u02DF"
+            html  : "\u00D7"
           }).click(function (e) {
             e.preventDefault();
             return $('#' + id).removeTag(escape(value));
